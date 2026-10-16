@@ -1,4 +1,3 @@
-
 import json
 import os
 from pathlib import Path
@@ -10,7 +9,6 @@ API_URL = "https://syklo-orderbook.ddns.net/book"
 
 USDC = "USDC:ALL:SYKLO"
 METODO_VES = "VES:VE:PF"
-UMBRAL = 1.0
 
 STATE_FILE = Path("state.json")
 WEBHOOK = os.environ.get("DISCORD_WEBHOOK_URL", "")
@@ -76,7 +74,6 @@ def obtener_precio(enviar, recibir, lado):
     if not validos:
         return None
 
-    # Mejor precio disponible en cada lado.
     return max(validos) if lado == "BID" else min(validos)
 
 
@@ -101,7 +98,6 @@ def enviar_alerta(mensaje):
 
 def main():
     estado = cargar_estado()
-    hubo_cambios = False
 
     mercados = [
         (
@@ -133,44 +129,29 @@ def main():
 
         print(f"{nombre}: {precio:.4f} VES/USDC")
 
-        if anterior is None:
-            estado[clave] = precio
-            hubo_cambios = True
-            print("Guardando precio inicial.")
-            continue
-
-        anterior = float(anterior)
-        variacion = (precio - anterior) / anterior * 100
-
-        print(f"Variación desde la referencia: {variacion:+.2f}%")
-
-        if abs(variacion) >= UMBRAL:
-            direccion = "SUBIÓ 📈" if variacion > 0 else "BAJÓ 📉"
-
-            mensaje = (
-                f"🔔 **Alerta Syklo USDC/VES**\n"
-                f"**Método:** {METODO_VES}\n"
-                f"**Mercado:** {nombre}\n"
-                f"**Cambio:** {direccion} {abs(variacion):.2f}%\n"
-                f"**Precio anterior:** {anterior:.4f}\n"
-                f"**Precio actual:** {precio:.4f} VES/USDC\n"
-                f"**Hora UTC:** "
-                f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"
-            )
-
-            # Solo mover la referencia cuando Discord confirme
-            # que recibió la alerta.
-            if enviar_alerta(mensaje):
-                estado[clave] = precio
-                hubo_cambios = True
+        if anterior is not None:
+            anterior = float(anterior)
+            variacion = (precio - anterior) / anterior * 100
+            direccion = "SUBIÓ 📈" if variacion > 0 else "BAJÓ 📉" if variacion < 0 else "SIN CAMBIOS 🔄"
+            cambio_str = f"{direccion} {abs(variacion):.2f}%"
         else:
-            print("No alcanza el umbral de alerta.")
+            variacion = 0.0
+            cambio_str = "Primer registro 🚀"
 
-    if hubo_cambios:
-        guardar_estado(estado)
-        print("Estado actualizado.")
-    else:
-        print("No hay cambios que guardar.")
+        mensaje = (
+            f"🔔 **Reporte Syklo USDC/VES**\n"
+            f"**Método:** {METODO_VES}\n"
+            f"**Mercado:** {nombre}\n"
+            f"**Precio actual:** `{precio:.4f}` VES/USDC\n"
+            f"**Estado:** {cambio_str}\n"
+            f"**Hora UTC:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+
+        if enviar_alerta(mensaje):
+            estado[clave] = precio
+
+    guardar_estado(estado)
+    print("Estado actualizado y notificaciones enviadas.")
 
 
 if __name__ == "__main__":
