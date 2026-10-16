@@ -34,14 +34,11 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python main.py
 
-      - name: Guardar referencia de precios
+     - name: Guardar referencia de precios
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add state.json
-          if ! git diff --cached --quiet; then
-            git commit -m "Actualizar referencia de precios"
-            git push
-          else
-            echo "No hay cambios de estado que guardar."
-          fi
+          git diff --cached --quiet || git commit -m "Actualizar referencia de precios"
+          git pull --rebase origin main || git pull --rebase
+          git push
