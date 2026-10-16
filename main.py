@@ -8,7 +8,10 @@ import requests
 API_URL = "https://syklo-orderbook.ddns.net/book"
 
 USDC = "USDC:ALL:SYKLO"
-METODO_VES = "VES:VE:VEBN2,VES:VE:PF"
+
+# Definimos los métodos de pago de forma separada para poder combinarlos
+METODOS_VES_LISTA = ["VES:VE:VEBN2", "VES:VE:PF"]
+
 UMBRAL = 1.0  
 
 STATE_FILE = Path("state.json")
@@ -47,11 +50,16 @@ def obtener_precio(enviar, recibir, lado):
     respuesta.raise_for_status()
     datos = respuesta.json()
 
-    clave = f"{lado}:{METODO_VES}"
+    # La clave en el JSON de la API suele usar la combinación consultada
+    clave = f"{lado}:{enviar}"
     oferta = datos.get(clave)
 
     if not oferta:
-        print(f"Sin ofertas disponibles: {clave}")
+        # Intentar buscar la clave genérica o directa si el formato varía
+        oferta = datos.get(f"{lado}:{USDC}") or list(datos.values())[0] if datos else None
+
+    if not oferta:
+        print(f"Sin ofertas disponibles para enviar: {enviar} | recibir: {recibir}")
         return None
 
     precios = oferta.get("r_price", [])
@@ -101,22 +109,28 @@ def main():
     estado = cargar_estado()
     hubo_cambios = False
 
-    mercados = [
-        (
-            "USDC → VES (BID)",
+    mercados = []
+
+    # Construimos dinámicamente las combinaciones para cubrir los 4 escenarios de métodos VES
+    for metodo in METODOS_VES_LISTA:
+        # 1. USDC → VES (BID) para cada método
+        mercados.append((
+            f"USDC → VES ({metodo}) [BID]",
             USDC,
-            METODO_VES,
+            metodo,
             "BID",
-        ),
-        (
-            "VES → USDC (ASK)",
-            METODO_VES,
+            metodo
+        ))
+        # 2. VES → USDC (ASK) para cada método
+        mercados.append((
+            f"VES ({metodo}) → USDC [ASK]",
+            metodo,
             USDC,
             "ASK",
-        ),
-    ]
+            metodo
+        ))
 
-    for nombre, enviar, recibir, lado in mercados:
+    for nombre, enviar, recibir, lado, metodo_actual in mercados:
         try:
             precio = obtener_precio(enviar, recibir, lado)
         except (requests.RequestException, ValueError) as error:
@@ -131,7 +145,6 @@ def main():
 
         print(f"{nombre}: {precio:.4f} VES/USDC")
 
-        # Si es la primera vez que corre, guardamos la referencia inicial sin alerta
         if anterior is None:
             estado[clave] = precio
             hubo_cambios = True
@@ -143,13 +156,12 @@ def main():
 
         print(f"Variación desde la referencia: {variacion:+.2f}%")
 
-        # Validamos si supera el umbral configurado (1.0%)
         if abs(variacion) >= UMBRAL:
             direccion = "SUBIÓ 📈" if variacion > 0 else "BAJÓ 📉"
 
             mensaje = (
                 f"🔔 **Alerta Syklo USDC/VES**\n"
-                f"**Método:** {METODO_VES}\n"
+                f"**Método:** {metodo_actual}\n"
                 f"**Mercado:** {nombre}\n"
                 f"**Cambio:** {direccion} {abs(variacion):.2f}%\n"
                 f"**Precio anterior:** `{anterior:.4f}`\n"
