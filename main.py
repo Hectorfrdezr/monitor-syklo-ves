@@ -8,7 +8,7 @@ import requests
 API_URL = "https://syklo-orderbook.ddns.net/book"
 
 USDC = "USDC:ALL:SYKLO"
-METODO_VES = "VES:VE:PF"
+METODO_VES = "VES:VE:VEBN2"
 UMBRAL = 1.0  
 
 STATE_FILE = Path("state.json")
