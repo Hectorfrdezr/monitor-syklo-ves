@@ -10,7 +10,7 @@ API_URL = "https://syklo-orderbook.ddns.net/book"
 
 USDC = "USDC:ALL:SYKLO"
 METODO_VES = "VES:VE:PF"
-
+UMBRAL = "1.0"
 
 STATE_FILE = Path("state.json")
 WEBHOOK = os.environ.get("DISCORD_WEBHOOK_URL", "")
