@@ -9,6 +9,7 @@ API_URL = "https://syklo-orderbook.ddns.net/book"
 
 USDC = "USDC:ALL:SYKLO"
 METODO_VES = "VES:VE:PF"
+UMBRAL = 1.0  
 
 STATE_FILE = Path("state.json")
 WEBHOOK = os.environ.get("DISCORD_WEBHOOK_URL", "")
@@ -98,6 +99,7 @@ def enviar_alerta(mensaje):
 
 def main():
     estado = cargar_estado()
+    hubo_cambios = False
 
     mercados = [
         (
@@ -129,29 +131,43 @@ def main():
 
         print(f"{nombre}: {precio:.4f} VES/USDC")
 
-        if anterior is not None:
-            anterior = float(anterior)
-            variacion = (precio - anterior) / anterior * 100
-            direccion = "SUBIÓ 📈" if variacion > 0 else "BAJÓ 📉" if variacion < 0 else "SIN CAMBIOS 🔄"
-            cambio_str = f"{direccion} {abs(variacion):.2f}%"
-        else:
-            variacion = 0.0
-            cambio_str = "Primer registro 🚀"
-
-        mensaje = (
-            f"🔔 **Reporte Syklo USDC/VES**\n"
-            f"**Método:** {METODO_VES}\n"
-            f"**Mercado:** {nombre}\n"
-            f"**Precio actual:** `{precio:.4f}` VES/USDC\n"
-            f"**Estado:** {cambio_str}\n"
-            f"**Hora UTC:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"
-        )
-
-        if enviar_alerta(mensaje):
+        # Si es la primera vez que corre, guardamos la referencia inicial sin alerta
+        if anterior is None:
             estado[clave] = precio
+            hubo_cambios = True
+            print(f"Precio inicial guardado para {nombre}: {precio:.4f}")
+            continue
 
-    guardar_estado(estado)
-    print("Estado actualizado y notificaciones enviadas.")
+        anterior = float(anterior)
+        variacion = (precio - anterior) / anterior * 100
+
+        print(f"Variación desde la referencia: {variacion:+.2f}%")
+
+        # Validamos si supera el umbral configurado (1.0%)
+        if abs(variacion) >= UMBRAL:
+            direccion = "SUBIÓ 📈" if variacion > 0 else "BAJÓ 📉"
+
+            mensaje = (
+                f"🔔 **Alerta Syklo USDC/VES**\n"
+                f"**Método:** {METODO_VES}\n"
+                f"**Mercado:** {nombre}\n"
+                f"**Cambio:** {direccion} {abs(variacion):.2f}%\n"
+                f"**Precio anterior:** `{anterior:.4f}`\n"
+                f"**Precio actual:** `{precio:.4f}` VES/USDC\n"
+                f"**Hora UTC:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+
+            if enviar_alerta(mensaje):
+                estado[clave] = precio
+                hubo_cambios = True
+        else:
+            print("No alcanza el umbral de alerta (1%).")
+
+    if hubo_cambios:
+        guardar_estado(estado)
+        print("Estado actualizado.")
+    else:
+        print("No hay cambios significativos que guardar.")
 
 
 if __name__ == "__main__":
