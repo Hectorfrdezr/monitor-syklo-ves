@@ -9,7 +9,7 @@ API_URL = "https://syklo-orderbook.ddns.net/book"
 
 USDC = "USDC:ALL:SYKLO"
 
-# Definimos los métodos de pago de forma separada para poder combinarlos
+# Definimos los métodos de pago de forma separada para evaluar las 4 combinaciones
 METODOS_VES_LISTA = ["VES:VE:VEBN2", "VES:VE:PF"]
 
 UMBRAL = 1.0  
@@ -50,12 +50,10 @@ def obtener_precio(enviar, recibir, lado):
     respuesta.raise_for_status()
     datos = respuesta.json()
 
-    # La clave en el JSON de la API suele usar la combinación consultada
     clave = f"{lado}:{enviar}"
     oferta = datos.get(clave)
 
     if not oferta:
-        # Intentar buscar la clave genérica o directa si el formato varía
         oferta = datos.get(f"{lado}:{USDC}") or list(datos.values())[0] if datos else None
 
     if not oferta:
@@ -111,9 +109,9 @@ def main():
 
     mercados = []
 
-    # Construimos dinámicamente las combinaciones para cubrir los 4 escenarios de métodos VES
+    # Construimos dinámicamente los 4 escenarios de transacciones (2 métodos x 2 sentidos)
     for metodo in METODOS_VES_LISTA:
-        # 1. USDC → VES (BID) para cada método
+        # 1. USDC → VES (BID) usando este método
         mercados.append((
             f"USDC → VES ({metodo}) [BID]",
             USDC,
@@ -121,7 +119,7 @@ def main():
             "BID",
             metodo
         ))
-        # 2. VES → USDC (ASK) para cada método
+        # 2. VES → USDC (ASK) usando este método
         mercados.append((
             f"VES ({metodo}) → USDC [ASK]",
             metodo,
