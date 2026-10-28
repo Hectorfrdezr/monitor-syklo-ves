@@ -1,6 +1,6 @@
 {
-  "USDC → VES (VES:VE:VEBN2) [BID]": 970.0,
+  "USDC → VES (VES:VE:VEBN2) [BID]": 1.0,
   "VES (VES:VE:VEBN2) → USDC [ASK]": 1024.0,
-  "USDC → VES (VES:VE:PF) [BID]": 1.0,
-  "VES (VES:VE:PF) → USDC [ASK]": 990.0
+  "USDC → VES (VES:VE:PF) [BID]": 979.005,
+  "VES (VES:VE:PF) → USDC [ASK]": 1008.997
 }
